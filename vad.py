@@ -1,31 +1,25 @@
 import numpy as np
-import scipy.io.wavfile as wf
 import matplotlib.pyplot as plt
 
 class VoiceActivityDetector():
     """ Use signal energy to detect voice activity in wav file """
     
-    def __init__(self, wave_input_filename):
-        self._read_wav(wave_input_filename)._convert_to_mono()
-        self.sample_window = 0.02 #20 ms
-        self.sample_overlap = 0.01 #10ms
-        self.speech_window = 0.5 #half a second
-        self.speech_energy_threshold = 0.6 #60% of energy in voice band
+    def __init__(self, signal,fs=16000):
+        '''
+        :param signal: audio signal converted to mono
+        :param fs:
+        '''
+        self.data = signal
+        self.channels = 1
+        self.rate = float(fs)
+        self.sample_window = 0.01 #20 ms
+        self.sample_overlap = 0.005 #10ms
+        self.speech_window = 0.25 #half a second
+        self.speech_energy_threshold = 0.5 #60% of energy in voice band
         self.speech_start_band = 300
         self.speech_end_band = 3000
-           
-    def _read_wav(self, wave_file):
-        self.rate, self.data = wf.read(wave_file)
-        self.channels = len(self.data.shape)
-        self.filename = wave_file
-        return self
-    
-    def _convert_to_mono(self):
-        if self.channels == 2 :
-            self.data = np.mean(self.data, axis=1, dtype=self.data.dtype)
-            self.channels = 1
-        return self
-    
+
+
     def _calculate_frequencies(self, audio_data):
         data_freq = np.fft.fftfreq(len(audio_data),1.0/self.rate)
         data_freq = data_freq[1:]
@@ -101,14 +95,14 @@ class VoiceActivityDetector():
                 speech_label = {}
                 speech_time_start = window[0] / self.rate
                 speech_label['speech_begin'] = speech_time_start
-                print window[0], speech_time_start
+                print(window[0], speech_time_start)
                 #speech_time.append(speech_label)
             if (window[1]==0.0 and is_speech==1):
                 is_speech = 0
                 speech_time_end = window[0] / self.rate
                 speech_label['speech_end'] = speech_time_end
                 speech_time.append(speech_label)
-                print window[0], speech_time_end
+                print(window[0], speech_time_end)
         return speech_time
       
     def plot_detected_speech_regions(self):
@@ -151,6 +145,6 @@ class VoiceActivityDetector():
             speech_ratio = speech_ratio>self.speech_energy_threshold
             detected_windows = np.append(detected_windows,[sample_start, speech_ratio])
             sample_start += sample_overlap
-        detected_windows = detected_windows.reshape(len(detected_windows)/2,2)
+        detected_windows = detected_windows.reshape(int(len(detected_windows)/2),2)
         detected_windows[:,1] = self._smooth_speech_detection(detected_windows)
         return detected_windows
